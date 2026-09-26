@@ -144,3 +144,17 @@ O CSP permite conexão somente com a própria origem e o bucket específico.
 Validação automatizada: 164 testes do motor e 62 testes do Studio aprovados.
 Os novos testes cobrem geometria fechada/escala dos modelos, bloqueio anônimo,
 origem de gravações, limites, checksum, envio incompleto e retentativa idempotente.
+
+Publicação do histórico: commit `7890160`, 54 arquivos conferidos byte a byte
+em produção. Armazenamento real na AWS validado com um objeto de prova: CORS,
+SHA-256, recusa de conteúdo incorreto e sobrescrita, download temporário,
+negação de leitura pública e versionamento. API nega acesso anônimo e gravação
+de outra origem. Evidências em `.local/verification.json` e, no Studio,
+`.local/support-fins-storage-verification.json`.
+
+Fluxo de interface validado localmente usando o serviço real com armazenamento
+em memória: salvar, trocar modelo, reabrir (orientação, dimensões e suportes
+restaurados), registrar observações e salvar segunda versão preservando a
+primeira. Sem erros de console. Esses registros de ensaio não foram enviados
+ao histórico da equipe. O teste completo de gravação pela sessão Cognito em
+produção aguarda login do usuário; não foi declarado como concluído.
