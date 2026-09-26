@@ -1,9 +1,9 @@
 /**
- * Orientation suggester -- ranked, never auto-applied.
+ * Orientation suggester -- ranks printable poses, best first.
  *
- * The product rule (v1 spec, and the "human stays in the loop" video beat) is
- * that the user rotates; this only proposes. It returns 2-3 candidate poses with
- * their tradeoffs and an honest confidence, and the UI applies one on a click.
+ * Returns 2-3 candidate poses with their tradeoffs and an honest confidence.
+ * The Dowell UI applies the best printable pose when the user requests suggestions,
+ * while keeping alternatives and undo available.
  *
  * We score for PRINTABILITY, not strength, on purpose. Strength wants the part
  * tilted onto a slant so the layer lines run diagonally -- but which slant is

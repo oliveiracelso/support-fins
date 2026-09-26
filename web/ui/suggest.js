@@ -1,6 +1,6 @@
 /**
  * Suggest orientation: rank a few printable poses, list them with their fin count
- * and the "no support" / "bores clean" verdicts, and turn the part on a click.
+ * and the "no support" / "bores clean" verdicts, and apply the best printable pose.
  */
 import * as THREE from 'three';
 import { suggestOrientations, layerVerdict } from '../orient.js';
@@ -69,12 +69,27 @@ function noSupportVerdict(c) {
   return null;
 }
 
+function selectSuggestion(index) {
+  const candidate = suggestions[index];
+  applySuggestion(candidate.rot);
+  Array.from(el('suggest-list').children).forEach((row, i) => {
+    row.classList.toggle('active', i === index);
+    row.setAttribute('aria-pressed', String(i === index));
+  });
+  const verdict = candidate.seating === 'point' ? null : noSupportVerdict(candidate);
+  const note = el('suggest-note');
+  const selected = index === 0 ? 'Best orientation applied.' : `Orientation #${index + 1} applied.`;
+  note.textContent = `${selected} ${verdict?.note || 'Choose another pose to compare.'}`;
+  note.className = verdict ? 'hint good' : 'hint';
+}
+
 function renderSuggestions() {
   const list = el('suggest-list');
   list.replaceChildren();
   suggestions.forEach((c, i) => {
     const row = document.createElement('button');
     row.className = 'btn suggest-row';
+    row.setAttribute('aria-pressed', 'false');
     const point = c.seating === 'point';
     const overs = c.walls === 0 ? 'no fins' : `${c.walls} fin${c.walls === 1 ? '' : 's'}`;
     // Rough holes = the small hole/slot/bore-top overhangs this pose leaves
@@ -98,11 +113,7 @@ function renderSuggestions() {
       `<span class="sr-line">${c.height.toFixed(0)} mm · ${overs}${tail}${badge}</span>`;
     if (point) row.classList.add('bad');
     if (verdict?.tier === 'free') row.classList.add('free');
-    row.addEventListener('click', () => {
-      applySuggestion(c.rot);
-      for (const r of list.children) r.classList.remove('active');
-      row.classList.add('active');
-    });
+    row.addEventListener('click', () => selectSuggestion(i));
     list.append(row);
   });
   list.hidden = false;
@@ -127,16 +138,21 @@ export function hideSuggestions() {
  *  highlighted row stands for, so drop the highlight. The ranking doesn't depend
  *  on the pose, so the list stays and any row can still be clicked. */
 export function clearSuggestionMark() {
-  for (const r of el('suggest-list').children) r.classList.remove('active');
+  for (const r of el('suggest-list').children) {
+    r.classList.remove('active');
+    r.setAttribute('aria-pressed', 'false');
+  }
 }
 
 el('suggest-orient').addEventListener('click', () => {
   if (!part || !topology) return;
+  const requestedPart = part;
   const btn = el('suggest-orient');
   btn.disabled = true; btn.textContent = 'Ranking…';
   // let the button repaint before the (up to ~1s) solve blocks the thread
   requestAnimationFrame(() => requestAnimationFrame(() => {
     try {
+      if (part !== requestedPart) return;
       const { candidates, confidence } = suggestOrientations(topology, { top: 3, threshold });
       suggestions = candidates;
       // In-bore overhangs the current pose refuses (would scar a fit surface) — the
@@ -156,17 +172,7 @@ el('suggest-orient').addEventListener('click', () => {
           : 'Nothing to suggest for this part.';
       } else {
         renderSuggestions();
-        // Lead with the win when the best pose needs no support (or clears every
-        // bore); otherwise fall back to the honest confidence line.
-        const note = el('suggest-note');
-        const verdict = candidates[0].seating === 'point' ? null : noSupportVerdict(candidates[0]);
-        if (verdict) {
-          note.textContent = verdict.note;
-          note.className = 'hint good';
-        } else {
-          note.textContent = 'Click a pose to turn the part.';
-          note.className = 'hint';
-        }
+        selectSuggestion(0);
       }
     } finally {
       btn.disabled = false; btn.textContent = 'Suggest orientation';

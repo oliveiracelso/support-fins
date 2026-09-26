@@ -15,9 +15,7 @@ import { refreshFins } from './finbuild.js';
 import { finsVisible } from './settings.js';
 import { part, topology, shade } from './part.js';
 
-// The user rotates. Always. Auto-orientation may suggest, never apply -- the
-// spike's strength-optimal pose for one hub was 155mm tall balanced on a needle:
-// geometrically valid, unprintable.
+// Manual rotation remains available alongside the printability suggestions.
 export const gizmo = new TransformControls(camera, renderer.domElement);
 gizmo.setMode('rotate');
 gizmo.setSize(0.85);

@@ -16,6 +16,11 @@ O processamento dos modelos acontece no navegador. O aplicativo estático é
 acessível pelo link direto; a API privada do painel mantém sua autenticação.
 Não há conexão desta ferramenta com os comandos da impressora.
 
+**Suggest orientation** aplica automaticamente a melhor orientação imprimível
+ao terminar a análise e destaca a opção **Best**. As alternativas continuam
+selecionáveis e **Undo** restaura a posição anterior. Se não houver orientação
+imprimível, a peça permanece na posição atual.
+
 O perfil padrão agora é **Dowell DL1824-16**, mesa **1800 × 2400 mm** e altura
 **1600 mm**, bico **1,6 mm**, linha nominal **1,6 mm**, linha inicial **1,9 mm**,
 primeira camada **0,5 mm** e demais **0,6 mm**. O botão **← Dowell** volta ao painel.
