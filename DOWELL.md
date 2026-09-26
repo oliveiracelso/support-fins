@@ -54,3 +54,14 @@ remova o link do menu e os behaviors definidos por `addSupportFins` na stack.
 Para reverter uma versão da ferramenta, volte ao commit anterior no fork,
 atualize a infraestrutura se o import map mudar e execute o mesmo script.
 Não faça `sync --delete` na raiz do bucket.
+
+## Validação de 26/09/2026
+
+- 155 testes do Support Fins e 43 testes do Dowell Studio aprovados.
+- 49 arquivos publicados conferidos byte a byte, com CSP, MIME WebAssembly e
+  redirecionamento corretos. Dashboard responde e API rejeita acesso anônimo.
+- No navegador de produção: `bracket.step` importado com 1.044 triângulos,
+  dimensões 40 × 20 × 30 mm, dois suportes gerados, sem erros no console.
+- STL e 3MF baixados e validados: ambos com 1.836 triângulos; 3MF em milímetros.
+- Registros locais em `.local/verification.json`, `.local/browser-verification.json`
+  e `.local/deployment.json`. Nenhuma impressão física foi executada.
