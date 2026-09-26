@@ -37,9 +37,9 @@
     <select id="volume"></select>
   </label>
   <span class="field custom-vol" id="custom-vol" hidden>
-    <input type="number" id="vx" min="20" max="2000" step="1" aria-label="width">×<input
-           type="number" id="vy" min="20" max="2000" step="1" aria-label="depth">×<input
-           type="number" id="vz" min="20" max="2000" step="1" aria-label="height">mm
+    <input type="number" id="vx" min="20" max="5000" step="1" aria-label="width">×<input
+           type="number" id="vy" min="20" max="5000" step="1" aria-label="depth">×<input
+           type="number" id="vz" min="20" max="5000" step="1" aria-label="height">mm
   </span>
   <label class="field" title="Surface angle from the plate below which a face needs support.">
     Overhang
@@ -48,8 +48,8 @@
   </label>
   <span class="spacer"></span>
   <button class="btn" id="fins-toggle">Add fins</button>
-  <button class="btn" id="export">Export STL</button>
-  <button class="btn" id="export-3mf" title="Opens oriented and support-free in Bambu Studio, OrcaSlicer, or PrusaSlicer. Bambu/PrusaSlicer may note 'no config, geometry only' — expected; the part still comes in correct.">Export 3MF</button>
+  <button class="btn" id="export" disabled>Export STL</button>
+  <button class="btn" id="export-3mf" disabled title="Opens oriented and support-free in Bambu Studio, OrcaSlicer, or PrusaSlicer. Bambu/PrusaSlicer may note 'no config, geometry only' — expected; the part still comes in correct.">Export 3MF</button>
   <a class="btn gh" href="https://github.com/oliveiracelso/support-fins" target="_blank" rel="noopener"
      title="Source code on GitHub. Runs entirely in your browser; no file ever leaves your machine."
      aria-label="Support Fins on GitHub"><svg viewBox="0 0 16 16" width="16" height="16"
@@ -148,6 +148,18 @@
      draw-mode options panel can never overlap the receipt or overflow the viewport
      -- under pressure the rail scrolls and a flex spacer keeps status pinned low. -->
 <div id="right-rail">
+<aside id="machine-profile" lang="pt-BR">
+  <strong>Dowell DL1824-16 · bico 1,6 mm</strong>
+  <p>Mesa: 1.800 × 2.400 mm · altura: 1.600 mm<br>Linha: 1,6 mm · linha inicial: 1,9 mm</p>
+  <label class="fld row" id="layerh-fld" title="Use a mesma altura no OrcaSlicer para manter os dentes com uma camada.">
+    <span>Demais camadas <span class="mut">mm</span></span>
+    <input type="number" id="layer-height" min="0.1" max="0.8" step="0.05" value="0.6">
+  </label>
+  <label class="fld row" for="first-layer-height">Primeira camada <span><input type="number" id="first-layer-height" min="0.1" max="0.8" step="0.05" value="0.5"> mm</span></label>
+  <p>Dentes de 1,6 mm · paredes de 3,2 mm.<br>Suportes candidatos: validar desprendimento em uma amostra.</p>
+  <p class="hint">No OrcaSlicer, use as mesmas alturas de camada e desative suportes automáticos nas regiões já atendidas. STL/3MF exportam geometria; o perfil de impressão é escolhido no fatiador.</p>
+  <p id="export-status" role="status">Importe um modelo para exportar.</p>
+</aside>
 <!-- Fin options live OUTSIDE the topbar on purpose. Inline, they appeared and
      disappeared with the toggle, which re-flowed the whole bar and pushed it onto
      a second row on narrower screens: the act of turning fins on moved every
@@ -213,10 +225,6 @@
          clean bead and BEND off instead of tearing. That only holds if this matches
          the layer height you actually slice at -- set it wrong and the tines slice
          into ~1.5 layers and leave welts. Shown only when Tines is on. -->
-    <label class="fld row" id="layerh-fld" title="Set this to the layer height you slice at. The grip tines are one layer tall so they snap off clean; if this doesn't match your slicer, the tines tear and leave marks. Default 0.2mm.">
-      <span>Layer height <span class="mut">mm</span></span>
-      <input type="number" id="layer-height" min="0.08" max="0.4" step="0.04" value="0.2">
-    </label>
   </details>
 
   <!-- Contact/gap tuning: the default holds and breaks off for most parts, but the
@@ -230,11 +238,11 @@
        every pad number and is the only style that shows them. -->
   <details class="sec" data-sec="clearances">
     <summary><span class="sec-title">Clearances</span><span class="sec-sum" id="sum-clearances"></span></summary>
-    <label class="fld row" title="Clearance between a support top and the part. Bigger = cleaner surface / easier removal; too big stops holding the overhang. Default 0.2mm.">
+    <label class="fld row" title="Clearance between a support top and the part. Bigger = cleaner surface / easier removal; too big stops holding the overhang. Dowell: 0.6mm; match the OrcaSlicer layer height.">
       <span>Support gap <span class="mut">mm</span></span>
-      <input type="number" id="gap" min="0.1" max="0.4" step="0.05" value="0.2">
+      <input type="number" id="gap" min="0.1" max="1.6" step="0.05" value="0.6">
     </label>
-    <label class="fld row" title="A tilted part rests on an edge and peels off the plate without a pad. Auto: Light, or Sure hold when the part meets the plate on a point or a small round foot (it shows which). Light: one layer, 0.12mm off the part, peels off like a brim. Sure hold: thicker and tacked into the part, holds harder but is harder to remove. Custom: set every number yourself.">
+    <label class="fld row" title="A tilted part rests on an edge and peels off the plate without a pad. Auto: Light, or Sure hold when the part meets the plate on a point or a small round foot (it shows which). Light: one first layer, 0.3mm off the part, peels off like a brim. Sure hold: thicker and tacked into the part, holds harder but is harder to remove. Custom: set every number yourself.">
       Bed pad
       <select id="bed-pad">
         <option value="off">Off</option>
@@ -277,7 +285,7 @@
     </summary>
     <label class="fld row" id="sway-from-fld" title="Height the brace tines start at. 0 = grip the whole height; raise it to tie on only above where the part starts to move.">
       <span>Brace grip from <span class="mut">mm up</span></span>
-      <input type="number" id="sway-from" min="0" max="2000" step="5" value="0">
+      <input type="number" id="sway-from" min="0" max="5000" step="5" value="0">
     </label>
     <label class="fld row" id="sway-spacing-fld" title="Vertical distance between brace tines. Smaller = held tighter, more marks on the side. Default 6mm.">
       <span>Brace tine spacing <span class="mut">mm</span></span>
@@ -372,21 +380,19 @@
 
 <div id="drop">
   <div class="inner">
-    <p class="big">Print it support-free, in any slicer</p>
-    <p class="lede">Rotate a part however it prints best, and Support Fins bakes the
-      breakaway supports right into the STL. It prints the same on any machine, in any
-      slicer, with supports turned off.</p>
+    <p class="big">Prepare os suportes para a Dowell</p>
+    <p class="lede">Oriente a peça e gere suportes com dimensões para o bico de 1,6 mm.
+      Exporte o conjunto para conferir e fatiar no OrcaSlicer.</p>
     <ol class="steps">
-      <li><strong>Import an STL, 3MF or STEP.</strong> Drop it anywhere on this page.</li>
-      <li><strong>Rotate it.</strong> Red marks every surface that needs support.</li>
-      <li><strong>Export.</strong> Fins come baked in — no slicer supports needed.</li>
+      <li><strong>Importe um STL, 3MF ou STEP.</strong> Você também pode arrastar o arquivo.</li>
+      <li><strong>Oriente e use Add fins.</strong> Confira as regiões ainda sem suporte.</li>
+      <li><strong>Exporte e confira no fatiador.</strong> Use camadas de 0,5 mm na primeira e 0,6 mm nas demais, ou ajuste os dois programas juntos.</li>
     </ol>
-    <p class="small">Opening the 3MF, Bambu Studio and PrusaSlicer may note it has
-      “no config” and load the geometry only — that’s expected. The file is pure
-      geometry with no slicer profile baked in, so it opens the same in every slicer;
-      your part comes in correctly oriented and sized. Just slice with supports off.</p>
-    <p class="small">Nothing is uploaded. The file is read inside this tab and never
-      leaves your machine.</p>
+    <p class="small">O STL/3MF contém geometria em milímetros. Selecione o perfil Dowell
+      no OrcaSlicer e mantenha alturas de camada constantes. Desative os suportes do
+      fatiador nas regiões já atendidas; confira as demais na prévia.</p>
+    <p class="small">O processamento acontece neste navegador. O modelo não é enviado
+      ao servidor. Nenhum comando é enviado à impressora.</p>
     <p class="kofi-line">Free and open source. If it ever saves you a print,
       <a class="kofi" href="https://ko-fi.com/matthewtrahan" target="_blank" rel="noopener">buy
       me a coffee&nbsp;☕</a>.</p>

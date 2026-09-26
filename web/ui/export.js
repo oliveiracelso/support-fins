@@ -3,6 +3,7 @@
  */
 import { writeBinarySTL, download } from '../stl.js';
 import { writeThreeMF } from '../threemf.js';
+import { exportReady } from './export-state.js';
 import { el } from './dom.js';
 import { part, topology, lastResult, rotM3, partName } from './part.js';
 import { activeAdded } from './finbuild.js';
@@ -19,7 +20,7 @@ import { activeAdded } from './finbuild.js';
  * Returns null when there is nothing to export.
  */
 export function buildExportGeometry() {
-  if (!part || !topology || !lastResult) return null;
+  if (!exportReady() || !part || !topology || !lastResult) return null;
   const rot = rotM3.elements;
   const dz = lastResult.offset.z;
   const dx = lastResult.offset.x, dy = lastResult.offset.y;

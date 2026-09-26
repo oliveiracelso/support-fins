@@ -55,9 +55,13 @@ scene.add(under);
 
 export const plate = new THREE.Group();
 scene.add(plate);
+let volumeReach = 500;
 
 /** Grid + volume wireframe for a bed `sx` x `sy` mm and `sz` mm of headroom. */
 export function buildPlate(sx, sy, sz) {
+  volumeReach = Math.max(sx, sy, sz);
+  camera.far = Math.max(camera.far, volumeReach * 4);
+  camera.updateProjectionMatrix();
   plate.clear();
   const hx = sx / 2, hy = sy / 2;
   const step = 10;
@@ -100,7 +104,7 @@ export function frame(size) {
   const dist = reach * 2.1;
   camera.position.set(dist * 0.62, -dist * 0.72, dist * 0.55);
   camera.near = Math.max(0.5, reach / 200);
-  camera.far = dist * 12;
+  camera.far = Math.max(dist * 12, volumeReach * 4);
   camera.updateProjectionMatrix();
   controls.target.set(0, 0, size.z / 2);
   controls.update();

@@ -3,14 +3,15 @@
  * tines, sway braces, gap, cutouts, material profile, and the collapsible
  * sections with their one-line recaps. Owns finsVisible / finMode / drawAugment.
  */
-import { FIN, PAD } from '../fins.js';
+import { DOWELL, validLayers } from '../print-profile.js';
+import { FIN, PAD, applyDowellProfile } from '../fins.js';
 import { PROP } from '../prop.js';
 import { CUT } from '../cutout.js';
 import { el } from './dom.js';
 import { histPush } from './history.js';
 import { removeMode, syncRemoveUI, cancelRemove } from './remove.js';
 import { setDrawMsg, clearPreview, syncDrawControls } from './walls.js';
-import { lastBuilt, refreshFins } from './finbuild.js';
+import { lastBuilt, refreshFins, markFinsStale } from './finbuild.js';
 import { setGizmo } from './pose.js';
 
 export let finsVisible = false;
@@ -65,7 +66,7 @@ function padPreset(style) {
   if (style === 'auto') style = lastBuilt?.pad?.style === 'sure' ? 'sure' : 'light';
   return style === 'sure'
     ? { h: FIN.padH, gap: 0, grip: PAD.grab, margin: FIN.padMargin }
-    : { h: el('layer-height').valueAsNumber || 0.2, gap: PAD.brimGap, grip: 0, margin: FIN.padMargin };
+    : { h: el('first-layer-height').valueAsNumber || DOWELL.firstLayer, gap: PAD.brimGap, grip: 0, margin: FIN.padMargin };
 }
 let padShown = el('bed-pad').value;
 function syncPadStyle() {
@@ -98,21 +99,32 @@ for (const id of Object.values(PAD_FIELDS)) {
 // live on a small part, one rebuild instead of dozens on a large one.
 let refreshTimer = null;
 function debouncedRefresh(ms = 180) {
+  markFinsStale();
   clearTimeout(refreshTimer);
   refreshTimer = setTimeout(() => { refreshTimer = null; refreshFins(); }, ms);
 }
 // Tine grip only means anything when the tines are on, so hide its slider with the
 // toggle (keeps the panel honest -- no dead control).
-// Tine grip + layer height only matter when Tines is on -- hide both otherwise.
 function syncTineGrip() {
   const on = el('tines').checked;
   el('tinegrip-fld').hidden = !on;
-  // The Light pad is one layer tall, so it reads the layer height too.
-  el('layerh-fld').hidden = !on && !['light', 'auto'].includes(el('bed-pad').value);
 }
 el('tines').addEventListener('change', () => { syncTineGrip(); refreshFins(); });
 el('tine-density').addEventListener('input', () => debouncedRefresh());
-el('layer-height').addEventListener('input', () => debouncedRefresh());
+const LAYER_STORE = 'sf.dowell.layers.v1';
+function updateLayers() {
+  const layer = el('layer-height').valueAsNumber;
+  const first = el('first-layer-height').valueAsNumber;
+  if (validLayers(layer, first)) {
+    const bite = PROP.tineBite;
+    applyDowellProfile(layer, first);
+    PROP.tineBite = bite;
+    FIN.padH = first;
+    try { localStorage.setItem(LAYER_STORE, JSON.stringify({ layer, first })); } catch { /* optional */ }
+  }
+  debouncedRefresh();
+}
+for (const id of ['layer-height', 'first-layer-height']) el(id).addEventListener('input', updateLayers);
 el('coverage').addEventListener('input', () => debouncedRefresh());
 
 // Sway braces: the switch sits in its section header (like Tines), and its three
@@ -146,10 +158,14 @@ function wireGap(id, obj, key, lo, hi) {
   const input = el(id);
   input.addEventListener('input', () => {
     const v = input.valueAsNumber;
-    if (Number.isFinite(v)) { obj[key] = Math.min(hi, Math.max(lo, v)); debouncedRefresh(); }
+    if (Number.isFinite(v)) {
+      obj[key] = Math.min(hi, Math.max(lo, v));
+      if (id === 'gap') FIN.gap = obj[key];
+    }
+    debouncedRefresh();
   });
 }
-wireGap('gap', PROP, 'gap', 0.1, 0.4);
+wireGap('gap', PROP, 'gap', 0.1, 1.6);
 
 // Wall cutouts (issue #34). CUT.pattern is read fresh by every wall sweep -- the
 // drawn walls here on the page, the auto walls in the Worker via tunables.
@@ -158,18 +174,11 @@ el('cutout').addEventListener('change', () => {
   refreshFins();
 });
 
-// Material profiles. PETG welds to a support far harder than the PLA every bite
-// number here was tuned on, so PETG needs more clearance in all four places at
-// once: the fin's tine standoff (FIN.gap) and how far each tine sinks into the
-// part (FIN.tineBite), the plain breakaway prop's clearance (PROP.gap), and the
-// bed pad -- thinner (FIN.padH) with a gap instead of a tack (PAD.grab < 0). PLA
-// is exactly today's numbers, so switching to PLA (or never touching this) leaves
-// existing prints unchanged. These objects are read fresh on every build, so
-// applying a profile + rebuilding is all it takes. density is g/cm^3 for the
-// grams receipt.
+// Candidate Dowell clearances. PLA/PETG breakaway behaviour still needs physical
+// validation with the 1.6mm nozzle. density is g/cm^3 for the grams receipt.
 const MATERIAL = {
-  pla:  { finGap: 0.2, tineBite: 0.30, padH: 0.5, padGrab:  0.05, propGap: 0.2,  density: 1.24 },
-  petg: { finGap: 0.3, tineBite: 0.15, padH: 0.3, padGrab: -0.10, propGap: 0.3,  density: 1.27 },
+  pla:  { finGap: 0.6, tineBite: 1.20, padH: 0.5, padGrab:  0.05, propGap: 0.6,  density: 1.24 },
+  petg: { finGap: 0.8, tineBite: 0.60, padH: 0.5, padGrab: -0.10, propGap: 0.8,  density: 1.27 },
 };
 export let materialDensity = MATERIAL.pla.density;
 
@@ -177,9 +186,10 @@ function applyMaterial(name) {
   const m = MATERIAL[name] || MATERIAL.pla;
   FIN.gap = m.finGap;
   FIN.tineBite = m.tineBite;
-  FIN.padH = m.padH;
+  FIN.padH = el('first-layer-height').valueAsNumber || DOWELL.firstLayer;
   PAD.grab = m.padGrab;
   PROP.gap = m.propGap;
+  PROP.tineBite = m.tineBite;
   materialDensity = m.density;
   // Reflect the profile's clearances in the exposed tunables so the numbers on
   // screen match what will actually print (and a later hand-tweak starts from the
@@ -278,6 +288,14 @@ el('augment-toggle').addEventListener('click', () => {
 /** Bring the pad, tine, sway, cutout and material state in line with the controls
  *  (a reload can keep the browser's last values). Called once at startup. */
 export function initSettings() {
+  let layer = DOWELL.layer, first = DOWELL.firstLayer;
+  try {
+    const saved = JSON.parse(localStorage.getItem(LAYER_STORE));
+    if (saved && validLayers(saved.layer, saved.first)) ({ layer, first } = saved);
+  } catch { /* optional storage */ }
+  el('layer-height').value = layer;
+  el('first-layer-height').value = first;
+  applyDowellProfile(layer, first);
   syncTineGrip();
   syncPadStyle();
   syncSway();

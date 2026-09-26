@@ -2,6 +2,7 @@
  * Build volume: the preset/custom select, the remembered choice, and the plate
  * it draws. updateFit() reads the live size through currentVolume().
  */
+import { DOWELL } from '../print-profile.js';
 import { el } from './dom.js';
 import { buildPlate } from './scene.js';
 import { part, shade } from './part.js';
@@ -13,6 +14,7 @@ import { part, shade } from './part.js';
  * covers everything not listed, and the choice is remembered.
  */
 const VOLUMES = [
+  { x: DOWELL.x, y: DOWELL.y, z: DOWELL.z },
   { x: 180, y: 180, z: 180 },
   { x: 220, y: 220, z: 250 },
   { x: 250, y: 220, z: 270 },
@@ -20,8 +22,9 @@ const VOLUMES = [
   { x: 300, y: 300, z: 300 },
   { x: 350, y: 350, z: 350 },
 ];
-const DEFAULT_VOLUME = { x: 250, y: 220, z: 270 };
-const VOLUME_STORE = 'sf.volume';
+const DEFAULT_VOLUME = { x: DOWELL.x, y: DOWELL.y, z: DOWELL.z };
+const VOLUME_STORE = 'sf.dowell.volume.v1';
+const validVolume = (v) => v && [v.x, v.y, v.z].every((n) => Number.isFinite(n) && n >= 20 && n <= 5000);
 const volLabel = (v) => `${v.x} × ${v.y} × ${v.z} mm`;
 
 const volumeSelect = el('volume');
@@ -34,7 +37,7 @@ volumeSelect.add(new Option('Custom…', 'custom'));
 let volume = { ...DEFAULT_VOLUME };
 try {
   const saved = JSON.parse(localStorage.getItem(VOLUME_STORE) || 'null');
-  if (saved && saved.x > 0 && saved.y > 0 && saved.z > 0) volume = saved;
+  if (validVolume(saved)) volume = saved;
 } catch { /* corrupt or unavailable storage is not worth failing over */ }
 
 const isPreset = (v) => VOLUMES.some((p) => volLabel(p) === volLabel(v));
@@ -65,6 +68,6 @@ volumeSelect.addEventListener('change', () => {
 for (const inp of customInputs) {
   inp.addEventListener('input', () => {
     const [x, y, z] = customInputs.map((n) => Number(n.value));
-    if (x > 0 && y > 0 && z > 0) { volume = { x, y, z }; applyVolume(); }
+    if (validVolume({ x, y, z })) { volume = { x, y, z }; applyVolume(); }
   });
 }

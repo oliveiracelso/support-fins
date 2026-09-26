@@ -3,6 +3,8 @@
  * fallback), and turning a finished buildFins result into the fin and pad meshes
  * on screen. Owns the last build and the triangles the export reads.
  */
+import { DOWELL, validLayers } from '../print-profile.js';
+import { setExportStatus } from './export-state.js';
 import * as THREE from 'three';
 import { buildFins, FIN, PAD } from '../fins.js';
 import { PROP } from '../prop.js';
@@ -67,6 +69,7 @@ export function activeAdded() {
 // been superseded, and if a Worker can't be created (e.g. the page was opened
 // from file://) it falls back to building inline.
 let finWorker;               // undefined = not tried yet, null = unavailable, else a Worker
+let revision = 0, pendingRevision = -1;
 let finGen = 0;              // bumped per request; a reply with a stale id is ignored
 let finT0 = 0;               // start time of the in-flight build, for the readout timing
 let lastOpts = null;
@@ -90,7 +93,8 @@ function clearSpinner() {
 }
 
 function finOpts() {
-  return { mode: finMode === 'draw' ? 'prop' : finMode,
+  return { printerProfile: DOWELL.id, firstLayerHeight: el('first-layer-height').valueAsNumber,
+           mode: finMode === 'draw' ? 'prop' : finMode,
            bedPad: el('bed-pad').value !== 'off',
            tines: el('tines').checked,
            tineDensity: el('tine-density').valueAsNumber / 100,
@@ -104,7 +108,7 @@ function finOpts() {
            // applyTunables). Without this, Auto mode always built PLA's numbers.
            tunables: { finGap: FIN.gap, tineBite: FIN.tineBite, padH: FIN.padH,
                        padGrab: PAD.grab, padStyle: PAD.style, padCustom: { ...PAD.custom },
-                       propGap: PROP.gap,
+                       propGap: PROP.gap, propBite: PROP.tineBite,
                        cutout: CUT.pattern } };
 }
 
@@ -117,16 +121,17 @@ export function swayOpts() {
            reach: num('sway-depth', 15) / 100,
            gap: PROP.gap, bite: FIN.tineBite,
            tines: el('tines').checked,
-           layerHeight: el('layer-height').valueAsNumber };
+           layerHeight: el('layer-height').valueAsNumber,
+           firstLayerHeight: el('first-layer-height').valueAsNumber };
 }
 
 function makeFinWorker() {
   const w = new Worker(new URL('../finworker.js', import.meta.url), { type: 'module' });
   w.onmessage = (e) => {
-    if (e.data.id !== finGen) return;              // a newer pose already superseded this build
+    if (e.data.id !== finGen || pendingRevision !== revision) return;              // a newer pose already superseded this build
     finBusy = false;
     if (e.data.error) {                            // worker failed -- build inline so support still appears
-      applyBuilt(buildFins(topology, lastResult, rotM3.elements, lastOpts));
+      buildInline();
       return;
     }
     applyBuilt(e.data.built);
@@ -149,6 +154,17 @@ function getFinWorker() {
   return finWorker;
 }
 
+function buildInline() {
+  try { applyBuilt(buildFins(topology, lastResult, rotM3.elements, lastOpts)); }
+  catch (error) {
+    console.error('Support generation failed', error);
+    finBusy = false;
+    clearSpinner();
+    el('s-fins').textContent = 'Falha ao gerar suportes';
+    setExportStatus('Falha no cálculo. Ajuste os parâmetros ou recarregue o modelo antes de exportar.');
+  }
+}
+
 // Abandon an in-flight build when a newer pose arrives. Without this, rapid pose
 // changes (Suggest → lay flat → rotate) queued 2-3 slow builds behind each other
 // in the single worker, so the fresh result only landed many seconds later --
@@ -160,6 +176,20 @@ function supersedeBuild() {
 }
 
 export function refreshFins() {
+  markFinsStale();
+  if (!validLayers(el('layer-height').valueAsNumber, el('first-layer-height').valueAsNumber)) {
+    supersedeBuild();
+    clearSpinner();
+    setExportStatus('Camadas inválidas: use valores entre 0,1 e 0,8 mm.');
+    return;
+  }
+  const gap = el('gap').valueAsNumber;
+  if (!Number.isFinite(gap) || gap < 0.1 || gap > 1.6) {
+    supersedeBuild();
+    clearSpinner();
+    setExportStatus('Folga inválida: use valores entre 0,1 e 1,6 mm.');
+    return;
+  }
   if (!finsVisible || !lastResult || !topology) {
     supersedeBuild();                  // no build wanted now: drop any in-flight one so it can't re-add fins
     clearSpinner();
@@ -172,6 +202,8 @@ export function refreshFins() {
     clearPreview();
     rebuildDrawn();
     updateReadout(null);
+    updateFit();
+    setExportStatus(lastResult && topology ? '' : 'Importe um modelo para exportar.');
     return;
   }
 
@@ -183,7 +215,7 @@ export function refreshFins() {
     for (const m of [finMesh, padMesh]) { if (m) { scene.remove(m); m.geometry.dispose(); } }
     finMesh = padMesh = null;
     finTris = padTris = [];
-    applyBuilt(buildFins(topology, lastResult, rotM3.elements, lastOpts));
+    buildInline();
     return;
   }
 
@@ -192,7 +224,7 @@ export function refreshFins() {
   // the spinner joins it only if the build runs past the arm delay.
   finGen++;
   finBusy = true;
-  markFinsStale();
+  pendingRevision = revision;
   armSpinner();
 
   // inside.js caches its spatial grid on topology._insideGrid, and that grid holds
@@ -212,7 +244,7 @@ export function refreshFins() {
     for (const m of [finMesh, padMesh]) { if (m) { scene.remove(m); m.geometry.dispose(); } }
     finMesh = padMesh = null;
     finTris = padTris = [];
-    applyBuilt(buildFins(topology, lastResult, rotM3.elements, lastOpts));
+    buildInline();
   }
 }
 
@@ -257,6 +289,7 @@ function applyBuilt(built) {
   // Restore-all visibility keys off removedIds (this orientation's removals), which
   // is only known after the reconcile above -- refresh it once the build lands.
   syncRemoveUI();
+  setExportStatus();
 }
 
 /**
@@ -267,6 +300,8 @@ function applyBuilt(built) {
  */
 /** Grey the fins while a drag is in flight, so nothing on screen is a lie. */
 export function markFinsStale() {
+  revision++;
+  setExportStatus('Aguarde o recálculo dos suportes para exportar.');
   for (const m of [finMesh, padMesh, drawnMesh]) if (m) m.material.opacity = 0.25;
   finMaterial.transparent = padMaterial.transparent = drawMaterial.transparent = true;
   el('s-fins').textContent = 'generating supports…';

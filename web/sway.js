@@ -30,6 +30,7 @@
  * module depends on neither: the caller passes the material's numbers, whether it
  * runs in the Worker (after fins.js applyTunables) or on the page (Draw).
  */
+import { layerCell } from './print-profile.js';
 import { findWallPatches, patchProbe, patchPoint, tAtZ } from './planes.js';
 import { insidePart } from './inside.js';
 
@@ -98,6 +99,7 @@ function settings(opts = {}) {
   return {
     tines: opts.tines !== false,
     layerH: Math.max(0.04, num(opts.layerHeight, 0.2)),
+    firstLayerH: opts.firstLayerHeight,
     gap: num(opts.gap, SWAY.gap),
     bite: num(opts.bite, SWAY.bite),
     gripFrom: Math.max(0, num(opts.gripFrom, 0)),
@@ -316,7 +318,8 @@ export function buildSwayRib(p, uc, partTris, topo, rot, offset, opts = {}) {
     const zStart = Math.max(fz0 + 0.5, S.gripFrom, SWAY.footH + 0.5);
     const zEnd = Math.min(fz1, H) - 0.5;
     for (let z = zStart; z <= zEnd + 1e-6; z += S.spacing) {
-      const bot = Math.round(z / S.layerH) * S.layerH;
+      const bot = S.firstLayerH === undefined ? Math.round(z / S.layerH) * S.layerH
+        : layerCell(z, S.layerH, S.firstLayerH).top;
       const top = bot + S.layerH;
       if (top > H) break;
       const zMid = bot + S.layerH / 2;

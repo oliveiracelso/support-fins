@@ -28,6 +28,7 @@ import { insidePart, nearestPart, solidClearance } from './inside.js';
 import { faceAdjacency } from './planes.js';
 import { MIN_REGION_AREA } from './overhangs.js';
 import { ribbon, boxExtrude } from './solids.js';
+import { layerCell } from './print-profile.js';
 import { cutWall } from './cutout.js';
 
 export const PROP = {
@@ -1387,7 +1388,7 @@ export function tineStepFor(density) {
 }
 
 export function emitTines(line, tris, topo, rot, offset, out, stepArg = PROP.tineStep,
-                          minTop = PROP.baseH + 0.2, tineH = PROP.tineH, body = null) {
+                          minTop = PROP.baseH + 0.2, tineH = PROP.tineH, body = null, firstLayerHeight = undefined) {
   if (line.length < 2) return 0;
 
   // arc length along the run, to space nubs by a real distance not a station count
@@ -1412,7 +1413,7 @@ export function emitTines(line, tris, topo, rot, offset, out, stepArg = PROP.tin
   // length, so a squat part's sparse spacing never starves a long wall of grip or
   // leaves a short wall with a single lonely nub. min() only ever TIGHTENS the
   // requested spacing, never loosens it past the dense comb.
-  const step = Math.min(stepArg, total / PROP.minGripTines);
+  const step = Math.max(PROP.minTineStep ?? 0, Math.min(stepArg, total / PROP.minGripTines));
   if (total < step) return 0;
 
   // half the tine's WIDTH across the run -- one nozzle bead (PROP.tineW), NOT the
@@ -1455,14 +1456,12 @@ export function emitTines(line, tris, topo, rot, offset, out, stepArg = PROP.tin
     // the tine top within half a layer of the underside, so it lands right where the
     // part's nearest layer begins -- supporting it -- and its bottom stays in the same
     // or the adjacent grid cell as the wall's top layer, so it still rests on the wall.
-    // Grid is plate-origin (z = 0) at the layer height: exact when the slicer's first-
-    // layer height equals its layer height (the common default); a different first
-    // layer just offsets every tine by the same sub-layer amount. The probe below
-    // still uses the underside level (zMid), so PLACEMENT is unchanged -- only the
-    // built box moves onto the grid.
-    const tineTop = Math.round(z / tineH) * tineH;
-    const tineBot = tineTop - tineH;
-    const zMid = z - tineH / 2;
+    // With a printer profile, use its first-layer offset and probe the actual
+    // cell centre, so the grip check matches the box we emit.
+    const cell = firstLayerHeight === undefined ? null : layerCell(z, tineH, firstLayerHeight);
+    const tineTop = cell ? cell.top : Math.round(z / tineH) * tineH;
+    const tineBot = cell ? cell.bottom : tineTop - tineH;
+    const zMid = cell ? (tineTop + tineBot) / 2 : z - tineH / 2;
 
     // BITE DIRECTION comes from the PART (which way the nearest face points),
     // never from the wall's run: a run-aligned nub lies flat on a leaning face
@@ -1488,7 +1487,8 @@ export function emitTines(line, tris, topo, rot, offset, out, stepArg = PROP.tin
     // Test seam: tests/tines_realparts.test.js sets globalThis.__TINECAP to an array
     // and reads back each tine's seed + bite heading to verify grip on real parts
     // through the whole pipeline. Undefined in the browser -> a zero-cost noop.
-    if (globalThis.__TINECAP) globalThis.__TINECAP.push({ x, y, z: zMid, biteX: dirx, biteY: diry });
+    if (globalThis.__TINECAP) globalThis.__TINECAP.push({ x, y, z: zMid, biteX: dirx, biteY: diry,
+      top: tineTop, bottom: tineBot, width: PROP.tineW });
     count++;
     return true;
   };
@@ -2157,7 +2157,7 @@ export function buildProps(topo, result, rot, opts = {}) {
         // gap back so emitTines reads it as the surface, like the plate path does.
         if (withTines) {
           const topLine = pa.prop.line.map((p) => [p[0], p[1], p[2] + PROP.gap]);
-          tineTotal += emitTines(topLine, partTris, topo, rot, off, out, tineStepEff, undefined, tineHeight);
+          tineTotal += emitTines(topLine, partTris, topo, rot, off, out, tineStepEff, undefined, tineHeight, null, opts.firstLayerHeight);
         }
         // buildPartAttached pushed the wall starting at tri0; emitTines above pushed
         // its tines right after, so wall + tines are contiguous -> one segment.
@@ -2193,7 +2193,7 @@ export function buildProps(topo, result, rot, opts = {}) {
           const t0 = out.length;
           if (withTines) tineTotal += emitTines(
             sq.line.map((p) => [p[0], p[1], p[2] + PROP.gap]),
-            regionTris, topo, rot, off, out, tineStepEff, PROP.squatBrimH, tineHeight);
+            regionTris, topo, rot, off, out, tineStepEff, PROP.squatBrimH, tineHeight, null, opts.firstLayerHeight);
           servedRegions.add(patch.region);
           // buildSquatBed pushed this wall (sq.triRange) BEFORE every squat wall's
           // tines, so a fin's wall and its tines are NON-contiguous in `out` --
@@ -2306,7 +2306,7 @@ export function buildProps(topo, result, rot, opts = {}) {
         // The grip comb: nubs along this wall's settled top that bite into the
         // part. `settled` carries the surface z; emitTines subtracts the gap.
         if (withTines) tineTotal += emitTines(settled, regionTris, topo, rot, off, out, tineStepEff, undefined, tineHeight,
-                                              tallBody(settledBody));
+                                              tallBody(settledBody), opts.firstLayerHeight);
         props.push({
           span: span2, height: top - zBed, area: patch.area,
           stations: settled.length, trimmed: line.length - settled.length,

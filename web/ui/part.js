@@ -216,8 +216,8 @@ export function shade() {
 
   lastResult = res;
   markPrintTrisDirty();       // orientation moved: the cached print-space part is stale
-  if (finsVisible && !gizmo.dragging) refreshFins();
-  else if (finsVisible) markFinsStale();
+  if (!gizmo.dragging) refreshFins();
+  else markFinsStale();
 
   // where the part currently sits, the way a slicer states it
   const [ex, ey, ez] = readableEuler(part.quaternion);

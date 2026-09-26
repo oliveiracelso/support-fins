@@ -30,7 +30,8 @@ import { findWallPatches, patchProbe, patchPoint, tAtZ, zAt } from './planes.js'
 import { BED_EPS } from './overhangs.js';
 import { insidePart } from './inside.js';
 import { buildProps, noProps, surfaceZAt, emitTines, tineStepFor, PROP } from './prop.js';
-import { buildSwayBraces } from './sway.js';
+import { DOWELL, configureDowell } from './print-profile.js';
+import { buildSwayBraces, SWAY } from './sway.js';
 import { CUT, CUTOUT_PATTERNS } from './cutout.js';
 
 export const FIN = {
@@ -691,6 +692,7 @@ export function applyTunables(t) {
   if (['auto', 'light', 'sure', 'custom'].includes(t.padStyle)) PAD.style = t.padStyle;
   if (t.padCustom) for (const k of Object.keys(PAD.custom)) set(PAD.custom, k, t.padCustom[k]);
   set(PROP, 'gap', t.propGap);
+  set(PROP, 'tineBite', t.propBite);
   // The wedge keeps its own copy of the clearance, so the Support gap field and the
   // PETG profile never reached it -- not even on the main thread, where everything
   // else worked. One clearance, applied everywhere it is spelled.
@@ -1135,7 +1137,7 @@ export function buildFinOnPatch(topo, result, rot, patch, opts = {}) {
     return { ok: false, reason: 'aim at a downward / overhang face — a support fin '
       + 'holds an overhang up from below, not a vertical side' };
   }
-  const w = buildPerpFins(patch, topo, rot, result.offset, { tines: opts.tines, tineDensity: opts.tineDensity });
+  const w = buildPerpFins(patch, topo, rot, result.offset, { tines: opts.tines, tineDensity: opts.tineDensity, layerHeight: opts.layerHeight, firstLayerHeight: opts.firstLayerHeight });
   if (!w.count) {
     return { ok: false, reason: 'this face is too small or shallow to stand a fin '
       + 'under — tilt it steeper, or pick a broader overhang' };
@@ -1489,7 +1491,7 @@ function buildPerpFins(p, topo, rot, offset, opts = {}) {
     extrudeRing(ring, uDir, half, out);
     partTris ??= seatedPartTris(topo, rot, offset);
     emitFoot([top[0][0], top[0][1], 0], [top[top.length - 1][0], top[top.length - 1][1], 0], uDir, out, partTris);
-    if (opts.tines !== false) tineTotal += emitTines(contact, null, topo, rot, offset, out, tineStepFor(opts.tineDensity));
+    if (opts.tines !== false) tineTotal += emitTines(contact, null, topo, rot, offset, out, tineStepFor(opts.tineDensity), undefined, opts.layerHeight ?? PROP.tineH, null, opts.firstLayerHeight);
     if (out.length > before) {
       count++;
       // One wedge = ring + foot + its tines, all pushed contiguously since
@@ -1576,7 +1578,16 @@ function unservedAfterWedges(topo, rot, result, servedRegions, wedgeTris) {
  *                      the overhangs PLUS bracing fins if the part would topple)
  * @param opts.bedPad   add the pad when bed contact is too small to hold
  */
+export function applyDowellProfile(layer = DOWELL.layer, firstLayer = DOWELL.firstLayer) {
+  configureDowell({ FIN, PROP, PERP, PAD, SWAY, CUT }, layer, firstLayer);
+}
+
 export function buildFins(topo, result, rot, opts = {}) {
+  if (opts.printerProfile === DOWELL.id) {
+    opts = { ...opts, layerHeight: opts.layerHeight ?? DOWELL.layer,
+      firstLayerHeight: opts.firstLayerHeight ?? DOWELL.firstLayer };
+    applyDowellProfile(opts.layerHeight, opts.firstLayerHeight);
+  }
   applyTunables(opts.tunables);
   const built = buildFinsCore(topo, result, rot, opts);
   // Sway braces are an optional ADD-ON to whatever the mode placed (sway.js): a
@@ -1588,7 +1599,7 @@ export function buildFins(topo, result, rot, opts = {}) {
   // one of those, a brace is no longer a piece that snaps off by itself.
   const walls = (built.fins ?? []).map((f) => f.line).filter((l) => Array.isArray(l) && l.length);
   const sw = buildSwayBraces(topo, result, rot,
-    { ...opts.sway, tines: opts.tines, layerHeight: opts.layerHeight, avoid: { walls } });
+    { ...opts.sway, tines: opts.tines, layerHeight: opts.layerHeight, firstLayerHeight: opts.firstLayerHeight, avoid: { walls } });
   // Each brace also gets a fin record: the Auto view draws and exports only the
   // triangles some record claims (per-fin removal), so an unrecorded brace would
   // be counted in the readout but never shown or written out.
@@ -1663,7 +1674,7 @@ function buildFinsCore(topo, result, rot, opts = {}) {
       if (p.n.z >= -0.05) continue;                 // downward faces only
       if (p.area < PERP.minArea || (p.u1 - p.u0) < PERP.minWidth) continue; // broad faces only
       if (propServesPatch(p, base.props)) continue; // a prop already stands under it
-      const w = buildPerpFins(p, topo, rot, result.offset, { tines: withTines, pitch: covPitch, tineDensity: opts.tineDensity });
+      const w = buildPerpFins(p, topo, rot, result.offset, { tines: withTines, pitch: covPitch, tineDensity: opts.tineDensity, layerHeight: opts.layerHeight, firstLayerHeight: opts.firstLayerHeight });
       if (!w.count) continue;
       // Offset each wedge's range from its per-call `out` into the merged
       // wedgeTris array, so the range lands correctly in the final triangles.
@@ -1720,7 +1731,7 @@ function buildFinsCore(topo, result, rot, opts = {}) {
     const contact = bedContact(topo, result, rot);
     const seating = seatingOf(result, contact.pts);
     const pad = (opts.bedPad ?? true) && result.bedArea < FIN.padMinArea
-      ? buildPad(contact.pts, seatedPartTris(topo, rot, result.offset), padOut, opts.layerHeight) : null;
+      ? buildPad(contact.pts, seatedPartTris(topo, rot, result.offset), padOut, opts.firstLayerHeight ?? opts.layerHeight) : null;
     // A part seated on a POINT gets no props -- nothing standing on the plate
     // can hold a part that never touches it -- UNLESS the bed pad is on, in
     // which case the pad is what seats it and the walls have something to work
@@ -1855,7 +1866,7 @@ function buildFinsCore(topo, result, rot, opts = {}) {
 
   let pad = null;
   if ((opts.bedPad ?? true) && result.bedArea < FIN.padMinArea) {
-    pad = buildPad(contact, seatedPartTris(topo, rot, result.offset), padOut, opts.layerHeight);
+    pad = buildPad(contact, seatedPartTris(topo, rot, result.offset), padOut, opts.firstLayerHeight ?? opts.layerHeight);
   }
 
   return {

@@ -38,7 +38,7 @@ gizmo.addEventListener('dragging-changed', (e) => {
     // costs ~100ms on a 43k-face part, which is fine once and unusable at 60fps.
     // The overhang shading still updates live at 1-6ms, so the diagnosis the
     // user is steering by never stalls.
-    if (finsVisible) refreshFins();
+    refreshFins();
   }
 });
 gizmo.addEventListener('objectChange', () => {

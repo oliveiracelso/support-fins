@@ -332,7 +332,7 @@ html, body {
 
 /* Fin options, anchored under the toggle rather than inside the topbar, so
    turning fins on never moves another control. */
-#fin-opts {
+#fin-opts, #machine-profile {
   width: 264px;
   max-width: calc(100vw - 28px);
   box-sizing: border-box;
@@ -345,14 +345,14 @@ html, body {
   background: color-mix(in srgb, var(--panel) 92%, transparent);
   backdrop-filter: blur(6px);
 }
-#fin-opts .fld {
+#fin-opts .fld, #machine-profile .fld {
   display: flex;
   flex-direction: column;
   gap: 4px;
   color: var(--dim);
 }
 #fin-opts select,
-#fin-opts input[type=number] {
+#fin-opts input[type=number], #machine-profile input[type=number] {
   padding: 4px 8px;
   border: 1px solid var(--line);
   border-radius: 6px;
@@ -360,15 +360,19 @@ html, body {
   color: var(--text);
   font: inherit;
 }
-#fin-opts input[type=number] { width: 72px; }
+#fin-opts input[type=number], #machine-profile input[type=number] { width: 72px; }
 #fin-opts input[type=range] { width: 100%; margin: 0; accent-color: var(--accent); }
 /* A one-control field: label left, control right, one line instead of two. */
-#fin-opts .fld.row {
+#fin-opts .fld.row, #machine-profile .fld.row {
   flex-direction: row;
   align-items: center;
   justify-content: space-between;
   gap: 8px;
 }
+#machine-profile p { margin: 0; color: var(--dim); font-size: 11px; }
+#machine-profile strong { font-size: 12px; }
+#machine-profile #export-status { color: #e8b64c; }
+input:invalid { outline: 1px solid #e8b64c; }
 #fin-opts .fld.row select { min-width: 0; max-width: 130px; }
 /* Bed pad's Auto option names what it built ("Auto (Sure hold)"), which the
    130px cap cut off -- the one label that must be read whole. */
