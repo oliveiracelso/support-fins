@@ -99,3 +99,10 @@ Na adaptação: **161 testes aprovados**, incluindo seis novos testes de dimens�
 grade de camadas, Auto/cunhas, pad, paredes manuais e escoras. No navegador local,
 um modelo de 300 × 180 × 300 mm gerou 15 suportes; exportação bloqueada durante
 recálculo. Campo de camada inválido também bloqueia a saída.
+
+Publicação da adaptação: commit `58add86`, 51 arquivos conferidos byte a byte,
+invalidação CloudFront concluída. Em produção, STL e 3MF com 64.700 triângulos
+(20 da peça + 64.680 dos suportes), sem erro de console. Os 194.040 vértices
+exportados dos suportes coincidem com o cálculo independente do perfil Dowell,
+diferença máxima de 0,0000062 mm por arredondamento Float32.
+Registro: `.local/adaptation-browser-verification.json`.
