@@ -32,6 +32,8 @@ continua em `../dowell-studio/infra/`, incluindo `support-fins.mjs`.
    Dowell Studio antes do upload. A política CSP usa o hash exato do import map.
 4. Execute `node scripts/deploy-dowell.mjs` nesta pasta.
 5. Aguarde a invalidação e confira importação, geração e exportação no navegador.
+   Execute `node scripts/verify-dowell.mjs` para conferir bytes dos arquivos,
+   cabeçalhos CSP/MIME, redirecionamento e acesso anônimo negado à API do painel.
 
 O script valida a conta, a stack, o domínio e o hash autorizado. Envia somente
 `web/` para o prefixo `support-fins/`, sem apagar o painel. Registra a publicação
