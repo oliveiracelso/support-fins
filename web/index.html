@@ -51,7 +51,7 @@
   <button class="btn" id="export" disabled>Export STL</button>
   <button class="btn" id="export-3mf" disabled title="Opens oriented and support-free in Bambu Studio, OrcaSlicer, or PrusaSlicer. Bambu/PrusaSlicer may note 'no config, geometry only' — expected; the part still comes in correct.">Export 3MF</button>
   <a class="btn gh" href="https://github.com/oliveiracelso/support-fins" target="_blank" rel="noopener"
-     title="Source code on GitHub. Runs entirely in your browser; no file ever leaves your machine."
+     title="Código aberto. Processamento local; o envio ao S3 ocorre ao salvar no histórico."
      aria-label="Support Fins on GitHub"><svg viewBox="0 0 16 16" width="16" height="16"
      aria-hidden="true"><path fill="currentColor" d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/></svg>&nbsp;GitHub</a>
   <a class="btn kofi" href="https://ko-fi.com/matthewtrahan" target="_blank" rel="noopener"
@@ -159,6 +159,13 @@
   <p>Dentes de 1,6 mm · paredes de 3,2 mm.<br>Suportes candidatos: validar desprendimento em uma amostra.</p>
   <p class="hint">No OrcaSlicer, use as mesmas alturas de camada e desative suportes automáticos nas regiões já atendidas. STL/3MF exportam geometria; o perfil de impressão é escolhido no fatiador.</p>
   <p id="export-status" role="status">Importe um modelo para exportar.</p>
+  <label class="fld">Nome da versão<input type="text" id="library-name" maxlength="120" placeholder="Nome da peça ou teste"></label>
+  <label class="fld">Anotações<textarea id="library-notes" rows="2" maxlength="2000" placeholder="O que mudou nesta versão?"></textarea></label>
+  <div class="library-actions">
+    <button class="btn sm" id="save-library" disabled>Salvar no histórico</button>
+    <button class="btn sm" id="open-library">Histórico e testes</button>
+  </div>
+  <p>Salvar envia a malha original, parâmetros e arquivos gerados ao S3 privado da Dowell.</p>
 </aside>
 <!-- Fin options live OUTSIDE the topbar on purpose. Inline, they appeared and
      disappeared with the toggle, which re-flowed the whole bar and pushed it onto
@@ -391,8 +398,8 @@
     <p class="small">O STL/3MF contém geometria em milímetros. Selecione o perfil Dowell
       no OrcaSlicer e mantenha alturas de camada constantes. Desative os suportes do
       fatiador nas regiões já atendidas; confira as demais na prévia.</p>
-    <p class="small">O processamento acontece neste navegador. O modelo não é enviado
-      ao servidor. Nenhum comando é enviado à impressora.</p>
+    <p class="small">O processamento acontece neste navegador. Use Salvar no histórico
+      para enviar uma versão ao S3 privado da Dowell. Nenhum comando é enviado à impressora.</p>
     <p class="kofi-line">Free and open source. If it ever saves you a print,
       <a class="kofi" href="https://ko-fi.com/matthewtrahan" target="_blank" rel="noopener">buy
       me a coffee&nbsp;☕</a>.</p>
@@ -419,6 +426,31 @@
   </div>
 </div>
 
+<dialog id="library-dialog" aria-labelledby="library-title" lang="pt-BR">
+  <div class="library-heading"><h2 id="library-title">Peças e testes da Dowell</h2><button class="btn" id="library-close">Fechar</button></div>
+  <p id="library-message" role="status"></p>
+  <button class="btn primary" id="library-save-now" disabled>Salvar peça aberta</button>
+  <section id="library-login" hidden>
+    <p>Entre com seu acesso do Dowell Studio. A peça aberta permanece nesta aba.</p>
+    <form id="library-login-form" class="library-actions">
+      <label>Usuário<input id="library-user" autocomplete="username" maxlength="128" required></label>
+      <label>Senha<input id="library-password" type="password" autocomplete="current-password" maxlength="256" required></label>
+      <button class="btn" id="library-login-submit" type="submit">Entrar</button>
+      <a class="btn" href="/" target="_blank" rel="noopener">Abrir painel Dowell</a>
+    </form>
+  </section>
+  <details class="library-tests" open>
+    <summary>Gerar peças de validação</summary>
+    <p>Use PLA, primeira camada 0,5 mm e demais 0,6 mm. Compare uma variável por vez.
+      Salve cada variante com um nome; depois registre aderência, acabamento e remoção.
+      Os testes geram modelos para fatiar, sem iniciar impressões.</p>
+    <div id="calibration-list" class="calibration-grid"></div>
+  </details>
+  <div class="library-heading"><h3>Histórico salvo na AWS</h3><button class="btn sm" id="library-refresh">Atualizar histórico</button></div>
+  <p>Versões compartilhadas com os usuários autenticados do Dowell Studio. Até 100 MB por arquivo e 250 MB por versão.</p>
+  <div id="library-list"></div>
+  <button class="btn" id="library-more" hidden>Carregar mais</button>
+</dialog>
 <script type="module" src="./app.js"></script>
 </body>
 </html>

@@ -81,6 +81,7 @@ export function setPart(geometry, filename) {
   computeFlatBaseline();
 
   partName = filename;
+  dispatchEvent(new Event('sf-part-loaded'));
   part.quaternion.identity();
   gizmo.attach(part);
   el('orient').hidden = false;
@@ -321,6 +322,12 @@ export function updateFit() {
 
 export let lastResult = null;
 export let threshold = DEFAULT_THRESHOLD;
+export function setThreshold(value) {
+  threshold = value;
+  el('thr').value = value;
+  el('thr-val').textContent = `${value}°`;
+  computeFlatBaseline();
+}
 const thrInput = el('thr');
 thrInput.value = String(threshold);
 thrInput.addEventListener('input', () => {

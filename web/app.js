@@ -10,6 +10,7 @@
  * that is overridden here rather than converting at every later step.
  */
 import * as THREE from 'three';
+import './ui/library.js';
 import { analyze } from './overhangs.js';
 import { buildFins } from './fins.js';
 import { findWallPatches } from './planes.js';

@@ -302,3 +302,15 @@ export function initSettings() {
   CUT.pattern = el('cutout').value;   // a reload can keep the browser's last pick
   applyMaterial(el('material').value);   // sync density + tunables to the initial choice
 }
+
+/** Restore a validated project without firing a sequence of partial rebuilds. */
+export function applySavedSettings() {
+  clearTimeout(refreshTimer); refreshTimer = null;
+  const gap = el('gap').valueAsNumber;
+  applyDowellProfile(el('layer-height').valueAsNumber, el('first-layer-height').valueAsNumber);
+  applyMaterial(el('material').value);
+  PROP.gap = FIN.gap = gap; el('gap').value = gap;
+  padShown = el('bed-pad').value; readPadCustom(); syncPadStyle();
+  CUT.pattern = el('cutout').value;
+  syncTineGrip(); syncSway(); syncSectionSums();
+}

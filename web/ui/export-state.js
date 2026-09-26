@@ -10,4 +10,5 @@ export function setExportStatus(message = '') {
   }
   el('export-status').textContent = reason;
   el('export-status').hidden = !reason;
+  dispatchEvent(new Event('sf-export-state'));
 }

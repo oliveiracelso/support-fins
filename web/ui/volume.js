@@ -46,6 +46,14 @@ customInputs.forEach((inp, i) => { inp.value = String([volume.x, volume.y, volum
 
 export const currentVolume = () => volume;
 
+export function setVolume(v) {
+  if (!validVolume(v)) throw new Error('Volume inválido.');
+  volume = { ...v };
+  volumeSelect.value = isPreset(volume) ? volLabel(volume) : 'custom';
+  customInputs.forEach((inp,i) => { inp.value = [v.x,v.y,v.z][i]; });
+  applyVolume();
+}
+
 export function applyVolume() {
   customRow.hidden = volumeSelect.value !== 'custom';
   buildPlate(volume.x, volume.y, volume.z);

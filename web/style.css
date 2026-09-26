@@ -373,6 +373,28 @@ html, body {
 #machine-profile strong { font-size: 12px; }
 #machine-profile #export-status { color: #e8b64c; }
 input:invalid { outline: 1px solid #e8b64c; }
+#machine-profile input[type=text], #machine-profile textarea,
+#library-dialog input, #library-dialog select, #library-dialog textarea {
+  color: var(--text); background: var(--bg); border: 1px solid var(--btn-line);
+  border-radius: 5px; padding: 7px; font: inherit; max-width: 100%;
+}
+#machine-profile textarea { resize: vertical; }
+#library-dialog { width: min(940px, 94vw); max-height: 90vh; padding: 22px;
+  color: var(--text); background: var(--panel); border: 1px solid var(--btn-line); border-radius: 12px; }
+#library-dialog::backdrop { background: #000b; }
+#library-dialog p { color: var(--dim); }
+#library-dialog h2, #library-dialog h3 { margin: 0; }
+#library-dialog #library-message { color: #e8b64c; min-height: 20px; }
+.library-heading, .library-actions { display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap; }
+.library-actions { justify-content: flex-start; }
+.library-card { border: 1px solid var(--line); padding: 14px; border-radius: 8px; margin: 10px 0; }
+.library-card details { margin-top: 12px; }
+.library-card textarea { display: block; width: 100%; margin: 8px 0; }
+.library-tests { margin: 16px 0; }
+.library-tests summary, .library-card summary { cursor: pointer; }
+.calibration-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+#library-login label { display: flex; flex-direction: column; gap: 4px; }
+@media (max-width: 720px) { .calibration-grid { grid-template-columns: 1fr; } }
 #fin-opts .fld.row select { min-width: 0; max-width: 130px; }
 /* Bed pad's Auto option names what it built ("Auto (Sure hold)"), which the
    130px cap cut off -- the one label that must be read whole. */

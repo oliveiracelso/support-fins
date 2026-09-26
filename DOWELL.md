@@ -106,3 +106,41 @@ invalidação CloudFront concluída. Em produção, STL e 3MF com 64.700 triâng
 exportados dos suportes coincidem com o cálculo independente do perfil Dowell,
 diferença máxima de 0,0000062 mm por arredondamento Float32.
 Registro: `.local/adaptation-browser-verification.json`.
+
+## Histórico privado e testes — 26/09/2026
+
+**Histórico e testes** abre a biblioteca e três peças de validação: placa de
+60 × 40 × 6,4 mm a 45°, balanço de 60 × 32 × 40,1 mm e torre de
+24 × 24 × 100,1 mm. Gerar carrega o modelo e cria suportes; não fatia nem imprime.
+Comparar uma variável por vez: grip leve/médio/firme na placa; folga
+0,4/0,6/0,8 mm no balanço; escoras na torre após validar os modelos pequenos.
+
+**Salvar no histórico** envia uma versão explicitamente para a AWS. Importar,
+calcular ou baixar localmente continua sem enviar o modelo. Cada versão guarda
+malha original normalizada em `source.stl`, resultado em STL e 3MF e um
+`project.json` com orientação, parâmetros, volume, paredes manuais e remoções.
+O arquivo CAD original e seus metadados não são arquivados; a malha pode ser
+reaberta para editar. Um novo salvamento não substitui a versão anterior.
+
+A biblioteca é compartilhada entre usuários autenticados do mesmo Dowell Studio.
+Usa a sessão Cognito existente, bucket S3 próprio privado e versionado, tabela
+DynamoDB com índice por data e uma Lambda independente. Não acessa a impressora,
+câmeras ou segredos de outros serviços. Resultados físicos podem ser registrados
+como ainda não testado, aprovado, precisa de ajuste ou falhou, com observações.
+
+Uploads vão diretamente ao S3 com URLs temporárias, tamanho assinado, SHA-256 e
+`If-None-Match: *`. A API confere tamanho/checksum dos quatro arquivos antes de
+exibir a versão. Retentativas mantêm o mesmo ID e conteúdo. Downloads exigem
+login para emitir URLs válidas por cinco minutos. Até 100 MB por arquivo,
+256 KB de parâmetros e 250 MB no conjunto. Não há exclusão automática do histórico.
+
+Infra/API no projeto irmão `dowell-studio`: `infra/support-fins-library.mjs`,
+`backend/support-fins.mjs` e `backend/support-fins-service.mjs`.
+Antes de publicar a stack, executar `node scripts/build-support-fins-backend.mjs`.
+Esse pacote é independente do backend de monitoramento. Os outputs da stack
+incluem `SupportFinsBucket`, `SupportFinsTable` e `SupportFinsFunction`.
+O CSP permite conexão somente com a própria origem e o bucket específico.
+
+Validação automatizada: 164 testes do motor e 62 testes do Studio aprovados.
+Os novos testes cobrem geometria fechada/escala dos modelos, bloqueio anônimo,
+origem de gravações, limites, checksum, envio incompleto e retentativa idempotente.
