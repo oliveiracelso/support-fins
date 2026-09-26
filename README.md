@@ -1,5 +1,9 @@
 # Support Fins
 
+**Dowell fork:** [open Support Fins in Dowell Studio](https://dowell.etnrlz.com/support-fins/).
+Deployment and usage notes: [DOWELL.md](DOWELL.md). Original project by
+[gittrahan](https://github.com/gittrahan/support-fins); original credits and license below.
+
 **Tip a part on edge, and Support Fins adds the breakaway support fins that make that
 orientation printable — baked right into the STL.**
 
